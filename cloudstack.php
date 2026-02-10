@@ -94,6 +94,71 @@ function cloudstack_ConfigOptions(): array
     ];
 }
 
+function cloudstack_generateconfigoption(string $optionName, int $productId, array $options): void
+{
+    // 1. Find or create a config group for the product.
+    $product = DB::table('tblproducts')->find($productId);
+    if (!$product) {
+        // Product not found, can't proceed.
+        return;
+    }
+    $groupName = "CloudStack Options for {$product->name}";
+    $configGroup = DB::table('tblproductconfiggroups')->where('name', $groupName)->first();
+
+    if (!$configGroup) {
+        $groupId = DB::table('tblproductconfiggroups')->insertGetId([
+            'name' => $groupName,
+            'description' => "Auto-generated for product '{$product->name}' by the CloudStack module."
+        ]);
+    } else {
+        $groupId = $configGroup->id;
+    }
+
+    // 2. Link the product to the group if not already linked.
+    $linkExists = DB::table('tblproductconfiglinks')->where('gid', $groupId)->where('pid', $productId)->exists();
+    if (!$linkExists) {
+        DB::table('tblproductconfiglinks')->insert(['gid' => $groupId, 'pid' => $productId]);
+    }
+
+    // 3. Find or create the configurable option within that group.
+    $configOption = DB::table('tblproductconfigoptions')
+        ->where('gid', $groupId)
+        ->where('optionname', $optionName)
+        ->first();
+
+    if (!$configOption) {
+        $configId = DB::table('tblproductconfigoptions')->insertGetId([
+            'gid' => $groupId,
+            'optionname' => $optionName,
+            'optiontype' => 'dropdown',
+            'qtyminimum' => 0,
+            'qtymaximum' => 0,
+            'order' => 0,
+            'hidden' => 0,
+        ]);
+    } else {
+        $configId = $configOption->id;
+        // Clear existing sub-options to refresh the list from CloudStack.
+        DB::table('tblproductconfigoptionssub')->where('configid', $configId)->delete();
+    }
+
+    // 4. Populate the sub-options from the `$options` array.
+    $subOptions = [];
+    $sortOrder = 0;
+    foreach ($options as $id => $name) {
+        $subOptions[] = [
+            'configid' => $configId,
+            'optionname' => "$id|$name",
+            'sortorder' => ++$sortOrder,
+            'hidden' => 0,
+        ];
+    }
+
+    if (!empty($subOptions)) {
+        DB::table('tblproductconfigoptionssub')->insert($subOptions);
+    }
+}
+
 function cloudstack_TerminateAccount(array $params): string
 {
     $cloudstack = request($params);
@@ -185,4 +250,3 @@ function cloudstack_AdminCustomButtonArray(): array
         "Start Server" => "start",
     ];
 }
-

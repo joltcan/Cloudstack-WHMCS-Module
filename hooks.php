@@ -5,7 +5,7 @@ declare(strict_types=1);
 use WHMCS\Database\Capsule as DB;
 
 add_hook('AdminAreaPage', 1, function (array $vars): void {
-    if ($_POST['ajaxpage'] ?? '' === 'createconfig') {
+    if (($_POST['ajaxpage'] ?? '') === 'createconfig') {
         require_once 'cloudstack.php';
 
         $productId = (int) ($_POST['productid'] ?? 0);
@@ -57,10 +57,10 @@ add_hook('AdminAreaPage', 1, function (array $vars): void {
             $temp[$template->id] = $template->name;
         }
 
-        cloustack_generateconfigoption('Zones', $productId, $zone);
-        cloustack_generateconfigoption('ServiceOffer', $productId, $soffer);
-        cloustack_generateconfigoption('DiskOffer', $productId, $disk);
-        cloustack_generateconfigoption('Template', $productId, $temp);
+        cloudstack_generateconfigoption('Zones', $productId, $zone);
+        cloudstack_generateconfigoption('ServiceOffer', $productId, $soffer);
+        cloudstack_generateconfigoption('DiskOffer', $productId, $disk);
+        cloudstack_generateconfigoption('Template', $productId, $temp);
 
         echo "success";
         exit();
